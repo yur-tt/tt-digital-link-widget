@@ -1,0 +1,215 @@
+{
+    "log_level": "INFO",
+    "bind_phrase": "changeme",
+    "channel": 140,
+    "bandwidth": "HT20",
+    "channels": [
+        {
+            "channel": 36,
+            "frequency_mhz": 5180,
+            "supported": true,
+            "pwm": [
+                800,
+                841
+            ]
+        },
+        {
+            "channel": 40,
+            "frequency_mhz": 5200,
+            "supported": true,
+            "pwm": [
+                841,
+                882
+            ]
+        },
+        {
+            "channel": 44,
+            "frequency_mhz": 5220,
+            "supported": true,
+            "pwm": [
+                883,
+                924
+            ]
+        },
+        {
+            "channel": 48,
+            "frequency_mhz": 5240,
+            "supported": true,
+            "pwm": [
+                925,
+                966
+            ]
+        },
+        {
+            "channel": 52,
+            "frequency_mhz": 5260,
+            "supported": true,
+            "pwm": [
+                966,
+                1007
+            ]
+        },
+        {
+            "channel": 56,
+            "frequency_mhz": 5280,
+            "supported": true,
+            "pwm": [
+                1008,
+                1049
+            ]
+        },
+        {
+            "channel": 60,
+            "frequency_mhz": 5300,
+            "supported": true,
+            "pwm": [
+                1050,
+                1091
+            ]
+        },
+        {
+            "channel": 64,
+            "frequency_mhz": 5320,
+            "supported": true,
+            "pwm": [
+                1092,
+                1133
+            ]
+        },
+        {
+            "channel": 100,
+            "frequency_mhz": 5500,
+            "supported": true,
+            "pwm": [
+                1133,
+                1174
+            ]
+        },
+        {
+            "channel": 104,
+            "frequency_mhz": 5520,
+            "supported": true,
+            "pwm": [
+                1175,
+                1216
+            ]
+        },
+        {
+            "channel": 108,
+            "frequency_mhz": 5540,
+            "supported": true,
+            "pwm": [
+                1217,
+                1258
+            ]
+        },
+        {
+            "channel": 116,
+            "frequency_mhz": 5580,
+            "supported": true,
+            "pwm": [
+                1259,
+                1300
+            ]
+        },
+        {
+            "channel": 120,
+            "frequency_mhz": 5600,
+            "supported": false,
+            "pwm": [
+                1300,
+                1341
+            ]
+        },
+        {
+            "channel": 124,
+            "frequency_mhz": 5620,
+            "supported": false,
+            "pwm": [
+                1342,
+                1383
+            ]
+        },
+        {
+            "channel": 128,
+            "frequency_mhz": 5640,
+            "supported": false,
+            "pwm": [
+                1384,
+                1425
+            ]
+        },
+        {
+            "channel": 136,
+            "frequency_mhz": 5680,
+            "supported": true,
+            "pwm": [
+                1426,
+                1467
+            ]
+        },
+        {
+            "channel": 140,
+            "frequency_mhz": 5700,
+            "supported": true,
+            "pwm": [
+                1467,
+                1508
+            ]
+        },
+        {
+            "channel": 144,
+            "frequency_mhz": 5720,
+            "supported": true,
+            "pwm": [
+                1509,
+                1550
+            ]
+        },
+        {
+            "channel": 149,
+            "frequency_mhz": 5745,
+            "supported": true,
+            "pwm": [
+                1551,
+                1592
+            ]
+        },
+        {
+            "channel": 153,
+            "frequency_mhz": 5765,
+            "supported": true,
+            "pwm": [
+                1593,
+                1634
+            ]
+        },
+        {
+            "channel": 157,
+            "frequency_mhz": 5785,
+            "supported": true,
+            "pwm": [
+                1634,
+                1675
+            ]
+        },
+        {
+            "channel": 161,
+            "frequency_mhz": 5805,
+            "supported": true,
+            "pwm": [
+                1676,
+                1717
+            ]
+        },
+        {
+            "channel": 165,
+            "frequency_mhz": 5825,
+            "supported": true,
+            "pwm": [
+                1718,
+                1759
+            ]
+        }
+    ]
+}

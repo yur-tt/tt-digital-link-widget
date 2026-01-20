@@ -1,3 +1,6 @@
+import json
+import threading
+
 import gi
 import requests
 
@@ -5,7 +8,10 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('AyatanaAppIndicator3', '0.1')
 from gi.repository import Gtk, AyatanaAppIndicator3 as AppIndicator, Gdk
 
-API_URL = "http://localhost:8000/freq/manual"
+# Налаштування
+API_URL_MANUAL = "http://localhost:8003/freq/manual"
+API_URL_SETTINGS = "http://localhost:8003/freq/settings"
+SETTINGS_FILE = "settings.json"
 
 
 class FloatingWidget(Gtk.Window):
@@ -13,98 +19,133 @@ class FloatingWidget(Gtk.Window):
         super().__init__(title="Digital Link Control")
         self.app = parent_app
 
-        # Window configuration
         self.set_border_width(10)
-        self.set_default_size(250, 150)
-        self.set_keep_above(True)  # <--- Stay on top of everything
-        self.set_type_hint(Gdk.WindowTypeHint.UTILITY)  # Doesn't show in Taskbar
+        self.set_keep_above(True)
+        self.set_type_hint(Gdk.WindowTypeHint.UTILITY)
+        self.set_resizable(False)
+        self.set_position(Gtk.WindowPosition.MOUSE)
 
-        # Main Layout
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.add(vbox)
 
-        # Frequency Dropdown
+        self.btn_manual = Gtk.ToggleButton(label="Enable Manual Control")
+        self.btn_manual.connect("toggled", self.on_manual_toggle)
+        vbox.add(self.btn_manual)
+
+        vbox.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+
         vbox.add(Gtk.Label(label="Frequency (MHz):", xalign=0))
         self.freq_combo = Gtk.ComboBoxText()
-        for f in self.app.frequencies:
+
+        sorted_freqs = sorted(self.app.channel_map.keys())
+        for f in sorted_freqs:
             self.freq_combo.append_text(str(f))
-        self.freq_combo.set_active(0)
+
+        self.freq_combo.set_active(13)
         self.freq_combo.connect("changed", self.on_change)
         vbox.add(self.freq_combo)
 
-        # Bitrate Dropdown
         vbox.add(Gtk.Label(label="Bitrate (kbps):", xalign=0))
         self.bit_combo = Gtk.ComboBoxText()
         for b in self.app.bitrates:
             self.bit_combo.append_text(str(b))
-        self.bit_combo.set_active(0)
+        self.bit_combo.set_active(2)
         self.bit_combo.connect("changed", self.on_change)
         vbox.add(self.bit_combo)
 
-        # Close/Hide button
-        btn_hide = Gtk.Button(label="Hide to Tray")
-        btn_hide.connect("clicked", lambda w: self.hide())
-        vbox.add(btn_hide)
+        # btn_hide = Gtk.Button(label="Hide into Tray")
+        # btn_hide.connect("clicked", lambda w: self.hide())
+        # vbox.add(btn_hide)
 
-        self.connect("delete-event", self.on_delete)
+        self.set_controls_sensitive(False)
+        self.connect("delete-event", lambda w, e: self.hide_on_delete())
         self.show_all()
 
-    def on_change(self, combo):
-        # Update app state and send
-        self.app.selected_freq = int(self.freq_combo.get_active_text())
-        self.app.selected_bitrate = int(self.bit_combo.get_active_text())
-        self.app.send_to_api()
+    def set_controls_sensitive(self, sensitive):
+        self.freq_combo.set_sensitive(sensitive)
+        self.bit_combo.set_sensitive(sensitive)
 
-    def on_delete(self, widget, event):
+    def on_manual_toggle(self, button):
+        mode = "manual" if button.get_active() else "disabled"
+        button.set_label("Manual Mode: ACTIVE" if button.get_active() else "Enable Manual Control")
+        self.set_controls_sensitive(button.get_active())
+        self.app.send_settings(mode)
+
+    def on_change(self, combo):
+        if self.btn_manual.get_active():
+            freq_str = self.freq_combo.get_active_text()
+            bit_str = self.bit_combo.get_active_text()
+
+            if freq_str and bit_str:
+                freq_int = int(freq_str)
+                channel_id = self.app.channel_map.get(freq_int)
+                self.app.send_manual_params(channel_id, int(bit_str))
+
+    def hide_on_delete(self):
         self.hide()
-        return True  # Prevents window from being destroyed
+        return True
 
 
 class TrayApp:
     def __init__(self):
-        self.frequencies = [2412, 2437, 2462, 5805]
-        self.bitrates = [1000, 2000, 5000, 10000]
-        self.selected_freq = self.frequencies[0]
-        self.selected_bitrate = self.bitrates[0]
+        self.channel_map = {}  # {5180: 36, 5200: 40, ...}
+        self.load_channels_from_json(SETTINGS_FILE)
 
-        # Indicator setup
+        self.bitrates = [500, 1000, 2000, 4000]
+
         self.indicator = AppIndicator.Indicator.new(
-            "digital_link_float",
+            "digital_link_control",
             "network-wireless",
             AppIndicator.IndicatorCategory.APPLICATION_STATUS
         )
         self.indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
 
-        # Menu
         menu = Gtk.Menu()
         item_show = Gtk.MenuItem(label="Show Control Panel")
-        item_show.connect("activate", self.show_window)
+        item_show.connect("activate", lambda _: self.win.present())
         menu.append(item_show)
-
+        menu.append(Gtk.SeparatorMenuItem())
         item_quit = Gtk.MenuItem(label="Quit")
         item_quit.connect("activate", Gtk.main_quit)
         menu.append(item_quit)
-
         menu.show_all()
         self.indicator.set_menu(menu)
 
-        # Create (but don't necessarily show) the window
         self.win = FloatingWidget(self)
 
-    def show_window(self, _):
-        self.win.present()  # Brings to front
+    def load_channels_from_json(self, filepath):
+        """Завантажує частоти та канали з JSON файлу"""
+        try:
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+                for entry in data.get("channels", []):
+                    if entry.get("supported"):
+                        mhz = entry.get("frequency_mhz")
+                        chn = entry.get("channel")
+                        self.channel_map[mhz] = chn
+        except Exception as e:
+            print(f"Error loading JSON: {e}")
+            self.channel_map = {5700: 140}
 
-    def send_to_api(self):
+    def send_settings(self, mode):
+        payload = {"mode": mode}
+        threading.Thread(target=self._post, args=(API_URL_SETTINGS, payload), daemon=True).start()
+
+    def send_manual_params(self, channel, bitrate):
+        """Надсилаємо номер КАНАЛУ (freq), а не MHz"""
         payload = {
-            "freq": self.selected_freq,
-            "bitrate": self.selected_bitrate,
+            "freq": channel,
+            "bitrate": bitrate,
             "bandwidth": 20, "mcs_index": 0, "fec_k": 0, "fec_n": 0
         }
+        threading.Thread(target=self._post, args=(API_URL_MANUAL, payload), daemon=True).start()
+
+    def _post(self, url, data):
         try:
-            requests.post(API_URL, json=payload, timeout=1)
-            print(f"Update Sent: {payload}")
+            r = requests.post(url, json=data, timeout=1.5)
+            print(f"Sent to {url}: {data} | Response: {r.status_code}")
         except:
-            print("API Error")
+            pass
 
 
 if __name__ == "__main__":
