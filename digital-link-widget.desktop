@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=RC
+Exec=python3 /home/tt/tt/tt-local/digital_link_widget/main.py
+Icon=preferences-desktop
+Type=Application
+Terminal=false

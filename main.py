@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import socket  # Додано для перевірки копій
 
 import gi
 import requests
@@ -11,6 +12,8 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('AyatanaAppIndicator3', '0.1')
 from gi.repository import Gtk, AyatanaAppIndicator3 as AppIndicator, Gdk, GLib
 
+# Шлях до сокета (унікальний для користувача)
+SOCKET_PATH = f"/tmp/digital_link_widget_{os.getlogin()}.lock"
 
 class FloatingWidget(Gtk.Window):
     def __init__(self, parent_app):
@@ -57,11 +60,6 @@ class FloatingWidget(Gtk.Window):
         self.bit_combo.set_active(2)
         self.bit_combo.connect("changed", self.on_bitrate_change)
         self.main_box.add(self.bit_combo)
-
-        # Кнопка приховати у трей
-        # btn_hide = Gtk.Button(label="Hide into Tray")
-        # btn_hide.connect("clicked", lambda w: self.hide())
-        # self.main_box.add(btn_hide)
 
         self.setup_frequencies()
         self.set_controls_sensitive(False)
@@ -156,6 +154,9 @@ class FloatingWidget(Gtk.Window):
 
 class TrayApp:
     def __init__(self):
+        # 1. Перевірка на вже запущену копію
+        self.check_single_instance()
+
         self.channel_map = {}
         self.bitrates = [500, 1000, 2000, 4000]
 
@@ -175,14 +176,49 @@ class TrayApp:
 
         menu.append(Gtk.SeparatorMenuItem())
 
-        # item_quit = Gtk.MenuItem(label="Quit")
-        # item_quit.connect("activate", Gtk.main_quit)
-        # menu.append(item_quit)
+        item_quit = Gtk.MenuItem(label="Quit")
+        item_quit.connect("activate", self.on_quit)
+        menu.append(item_quit)
 
         menu.show_all()
         self.indicator.set_menu(menu)
 
         self.win = FloatingWidget(self)
+
+        # 2. Запуск фонового сервера для прийому сигналів "show"
+        threading.Thread(target=self.instance_server, daemon=True).start()
+
+    def check_single_instance(self):
+        """Якщо сокет вже існує, кажемо основній апці показати вікно і закриваємось."""
+        if os.path.exists(SOCKET_PATH):
+            try:
+                client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                client.connect(SOCKET_PATH)
+                client.send(b"show")
+                client.close()
+                print("App is already running. Showing existing window.")
+                os._exit(0)
+            except ConnectionRefusedError:
+                # Файл є, але сервер не відповідає (програма "впала")
+                os.remove(SOCKET_PATH)
+
+    def instance_server(self):
+        """Слухає вхідні підключення від нових запусків."""
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(SOCKET_PATH)
+        server.listen(1)
+        while True:
+            conn, _ = server.accept()
+            data = conn.recv(1024)
+            if data == b"show":
+                # Використовуємо GLib.idle_add для безпечного виклику GTK з іншого потоку
+                GLib.idle_add(self.win.present)
+            conn.close()
+
+    def on_quit(self, widget):
+        if os.path.exists(SOCKET_PATH):
+            os.remove(SOCKET_PATH)
+        Gtk.main_quit()
 
     def load_channels_from_json(self, filepath):
         if not os.path.exists(filepath):
@@ -224,4 +260,7 @@ class TrayApp:
 
 if __name__ == "__main__":
     app = TrayApp()
-    Gtk.main()
+    try:
+        Gtk.main()
+    except KeyboardInterrupt:
+        app.on_quit(None)
