@@ -176,7 +176,7 @@ class TrayApp:
 
         menu.append(Gtk.SeparatorMenuItem())
 
-        item_quit = Gtk.MenuItem(label="Quit")
+        item_quit = Gtk.MenuItem(label="Закрити")
         item_quit.connect("activate", self.on_quit)
         menu.append(item_quit)
 
